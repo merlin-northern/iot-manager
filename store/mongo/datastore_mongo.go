@@ -39,12 +39,14 @@ import (
 const (
 	CollNameDevices      = "devices"
 	CollNameIntegrations = "integrations"
+	CollNameEntityTags   = "entity_tags"
 
 	KeyID             = "_id"
 	KeyIntegrationIDs = "integration_ids"
 	KeyProvider       = "provider"
 	KeyTenantID       = "tenant_id"
 	KeyCredentials    = "credentials"
+	KeyScope          = "scope"
 
 	ConnectTimeoutSeconds = 10
 	defaultAutomigrate    = false
@@ -203,6 +205,81 @@ func (db *DataStoreMongo) ListCollectionNames(
 	return db.client.Database(*db.DbName).ListCollectionNames(ctx, mopts.ListCollectionsOptions{})
 }
 
+// GetIntegrationsMap returns an array with all the tenants and scopes of their integration
+// this is need for services like inventory-enterprise which will need to know if given tenant
+// has an integration
+func (db *DataStoreMongo) GetIntegrationsMap(ctx context.Context, scope *string) ([]model.IntegrationMap, error) {
+	collIntegrations := db.Collection(CollNameIntegrations)
+	group := bson.M{
+		"$group": bson.M{
+			"_id": bson.M{
+				KeyTenantID: "$" + KeyTenantID,
+				KeyScope:    "$" + KeyScope,
+			},
+		},
+	}
+
+	if scope != nil {
+		group["$match"] = bson.M{KeyScope: *scope}
+	}
+	cur, err := collIntegrations.Aggregate(ctx, group)
+	if err != nil {
+		return nil, errors.Wrap(err, "error executing integrations collection request")
+	}
+	var results []model.IntegrationMap
+	if err = cur.All(ctx, &results); err != nil {
+		return nil, errors.Wrap(err, "error retrieving integrations collection results")
+	}
+
+	return results, nil
+}
+
+func (db *DataStoreMongo) GetIntegrationsEtag(ctx context.Context) string {
+	collIntegrations := db.Collection(CollNameEntityTags)
+	filter := bson.M{
+		"collection": CollNameIntegrations,
+	}
+
+	result := collIntegrations.FindOne(ctx, filter)
+	if result == nil {
+		return ""
+	}
+
+	tag := struct {
+		Collection string `bson:"collection"`
+		Etag       string `bson:"etag"`
+	}{}
+	err := result.Decode(&tag)
+	if err != nil {
+		return ""
+	}
+
+	return tag.Etag
+}
+
+func (db *DataStoreMongo) SetIntegrationsEtag(ctx context.Context, etag string) error {
+	collIntegrations := db.Collection(CollNameEntityTags)
+	filter := bson.M{
+		"collection": CollNameIntegrations,
+	}
+
+	tag := struct {
+		Collection string `bson:"collection"`
+		Etag       string `bson:"etag"`
+	}{
+		Collection: CollNameIntegrations,
+		Etag:       etag,
+	}
+	options := mopts.ReplaceOptions{}
+	options.SetUpsert(true)
+	_, err := collIntegrations.ReplaceOne(ctx, filter, tag, &options)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (db *DataStoreMongo) GetIntegrations(
 	ctx context.Context,
 	fltr model.IntegrationFilter,
@@ -216,7 +293,6 @@ func (db *DataStoreMongo) GetIntegrations(
 	if id != nil {
 		tenantID = id.Tenant
 	}
-
 	collIntegrations := db.Collection(CollNameIntegrations)
 	findOpts := mopts.Find().
 		SetSort(bson.D{{

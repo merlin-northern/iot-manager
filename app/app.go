@@ -67,6 +67,9 @@ type App interface {
 	GetDeviceIntegrations(context.Context, string) ([]model.Integration, error)
 	GetIntegrations(context.Context) ([]model.Integration, error)
 	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
+	GetIntegrationsMap(context.Context, *string) ([]model.IntegrationMap, error)
+	GetIntegrationsETag(context.Context) string
+	IntegrationsChanged(context.Context, string) bool
 	CreateIntegration(context.Context, model.Integration) (*model.Integration, error)
 	SetDeviceStatus(context.Context, string, model.Status) error
 	SetIntegrationCredentials(context.Context, uuid.UUID, model.Credentials) error
@@ -86,6 +89,7 @@ type App interface {
 
 	GetEvents(ctx context.Context, filter model.EventsFilter) ([]model.Event, error)
 	VerifyDeviceTwin(ctx context.Context, req model.PreauthRequest) error
+	InventoryChanged(ctx context.Context, attributes model.DeviceAttributes) error
 }
 
 // app is an app object
@@ -141,6 +145,22 @@ func (a *app) GetIntegrations(ctx context.Context) ([]model.Integration, error) 
 	return a.store.GetIntegrations(ctx, model.IntegrationFilter{})
 }
 
+func (a *app) GetIntegrationsMap(ctx context.Context, scope *string) ([]model.IntegrationMap, error) {
+	return a.store.GetIntegrationsMap(ctx, scope)
+}
+
+func (a *app) IntegrationsChanged(ctx context.Context, etag string) bool {
+	if etag == "" {
+		return true
+	}
+
+	return etag != a.store.GetIntegrationsEtag(ctx)
+}
+
+func (a *app) GetIntegrationsETag(ctx context.Context) string {
+	return a.store.GetIntegrationsEtag(ctx)
+}
+
 func (a *app) GetIntegrationById(ctx context.Context, id uuid.UUID) (*model.Integration, error) {
 	integration, err := a.store.GetIntegrationById(ctx, id)
 	if err != nil {
@@ -161,6 +181,9 @@ func (a *app) CreateIntegration(
 	result, err := a.store.CreateIntegration(ctx, integration)
 	if err == store.ErrObjectExists {
 		return nil, ErrIntegrationExists
+	}
+	if err != nil && result != nil {
+		err = a.store.SetIntegrationsEtag(ctx, uuid.NewString())
 	}
 	return result, err
 }
@@ -233,7 +256,7 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model
 		ctxWithTimeout = identity.WithContext(ctxWithTimeout, identity.FromContext(ctx))
 		defer cancel()
 		runAndLogError(ctxWithTimeout, func() error {
-			return a.setDeviceStatus(ctxWithTimeout, deviceID, status)
+			return a.setDeviceStatus(ctxWithTimeout, deviceID, status) // here
 		})
 	}()
 	return nil
@@ -769,6 +792,29 @@ func (a *app) GetEvents(ctx context.Context, filter model.EventsFilter) ([]model
 	return a.store.GetEvents(ctx, filter)
 }
 
+func (a *app) InventoryChanged(ctx context.Context, attributes model.DeviceAttributes) error {
+	// using runAndLogError we call the webhook; or queue and call the webhooks with arrays of devices
+	a.lockInventoryMap()
+	defer a.unlockInventoryMap()
+	a.insertInventory(ctx, attributes)
+	return nil
+}
+
+func (a *app) insertInventory(ctx context.Context, attributes model.DeviceAttributes) {
+	id:=identity.FromContext(ctx)
+	if id==nil {
+		return
+	}
+	if _,exists:=a.inventoryMap[id.Tenant]; !exists {
+		a.inventoryMap[id.Tenant] = make(map[string]model.InventoryItem)
+	}
+	a.inventoryMap[id.Tenant][id.Subject]=model.InventoryItem{Attributes: attributes, TenantID:id.Tenant}
+	// inventoryMap stores the per device inventories to be flushed to a webhook
+	// now the worker routine, locks the map via lockInventoryMap then replaces a.inventoryMap with a new
+	// hash and then unlocks via unlockInventoryMap and deals with the webhook calls, by
+	// gathering devices for each tenant in batches of e.g. 100 (defined var).
+}
+
 func runAndLogError(ctx context.Context, f func() error) {
 	var err error
 	logger := log.FromContext(ctx)
@@ -783,3 +829,4 @@ func runAndLogError(ctx context.Context, f func() error) {
 	}()
 	err = f()
 }
+

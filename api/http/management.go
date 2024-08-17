@@ -88,6 +88,11 @@ func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
 		)
 		return
 	}
+	// we introduced a scope of integration and all the previous
+	// integrations are in the `deviceauth` scope
+	if len(integration.Scope) < 1 {
+		integration.Scope = model.ScopeDeviceAuth
+	}
 
 	// TODO verify that Azure connectionstring / AWS equivalent has correct permissions
 	//      - service
