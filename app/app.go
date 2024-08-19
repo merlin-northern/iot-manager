@@ -794,6 +794,10 @@ func (a *app) GetEvents(ctx context.Context, filter model.EventsFilter) ([]model
 
 func (a *app) InventoryChanged(ctx context.Context, attributes model.DeviceAttributes) error {
 	// using runAndLogError we call the webhook; or queue and call the webhooks with arrays of devices
+	// we do not queue here -- since we are getting an array of device inventories; we just runAndLogError
+	// and call the webhooks; setting the ctx to some seconds, so we do not wait too long
+	// the ctx timeout should more or less match the interval at which inventory-enterprise
+	// flushes the webhook queue (inventory.webhookQueueFlushInterval)
 	a.lockInventoryMap()
 	defer a.unlockInventoryMap()
 	a.insertInventory(ctx, attributes)

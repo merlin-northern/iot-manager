@@ -45,7 +45,7 @@ const (
 	APIURLTenantDevice          = APIURLTenantDevices + "/:device_id"
 	APIURLTenantBulkDevices     = APIURLTenant + "/bulk/devices"
 	APIURLTenantBulkStatus      = APIURLTenantBulkDevices + "/status/:status"
-	APIURLTenantDeviceInventory = APIURLTenantDevice + "/inventory"
+	APIURLTenantDeviceInventory = APIURLTenantBulkDevices + "/inventory"
 
 	APIURLManagement = "/api/management/v1/iot-manager"
 
