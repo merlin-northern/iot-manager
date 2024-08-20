@@ -121,6 +121,7 @@ type IntegrationFilter struct {
 	Limit    int64
 	Provider Provider
 	IDs      []uuid.UUID
+	Scope    string
 }
 
 // IntegrationMap is used to return information on which tenant has which integration

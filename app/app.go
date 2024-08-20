@@ -66,6 +66,7 @@ type App interface {
 	HealthCheck(context.Context) error
 	GetDeviceIntegrations(context.Context, string) ([]model.Integration, error)
 	GetIntegrations(context.Context) ([]model.Integration, error)
+	GetIntegrationsWithScope(context.Context, string) ([]model.Integration, error)
 	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
 	GetIntegrationsMap(context.Context, *string) ([]model.IntegrationMap, error)
 	GetIntegrationsETag(context.Context) string
@@ -142,6 +143,10 @@ func (a *app) HealthCheck(ctx context.Context) error {
 }
 
 func (a *app) GetIntegrations(ctx context.Context) ([]model.Integration, error) {
+	return a.store.GetIntegrations(ctx, model.IntegrationFilter{})
+}
+
+func (a *app) GetIntegrationsWithScope(ctx context.Context, scope string) ([]model.Integration, error) {
 	return a.store.GetIntegrations(ctx, model.IntegrationFilter{})
 }
 
@@ -312,6 +317,9 @@ func (a *app) setDeviceStatus(ctx context.Context, deviceID string, status model
 			err = a.setDeviceStatusIoTCore(ctx, deviceID, status, integration)
 
 		case model.ProviderWebhook:
+			if integration.Scope != model.ScopeDeviceAuth {
+				break
+			}
 			var (
 				req *http.Request
 				rsp *http.Response
@@ -407,6 +415,9 @@ func (a *app) provisionDevice(
 			})
 			integrationIDs = append(integrationIDs, integration.ID)
 		case model.ProviderWebhook:
+			if integration.Scope != model.ScopeDeviceAuth {
+				break
+			}
 			var (
 				req *http.Request
 				rsp *http.Response
@@ -676,6 +687,9 @@ func (a *app) decommissionDevice(ctx context.Context, deviceID string) error {
 			}
 			err = a.decommissionIoTCoreDevice(ctx, deviceID, integration)
 		case model.ProviderWebhook:
+			if integration.Scope != model.ScopeDeviceAuth {
+				break
+			}
 			var (
 				req *http.Request
 				rsp *http.Response
@@ -803,14 +817,14 @@ func (a *app) InventoryChanged(ctx context.Context, attributes []model.Inventory
 		webHookCtx = identity.WithContext(webHookCtx, identity.FromContext(ctx))
 		defer cancel()
 		runAndLogError(webHookCtx, func() error {
-			integrations, err := a.GetIntegrations(ctx)
+			integrations, err := a.GetIntegrationsWithScope(ctx, model.ScopeInventory)
 			if err != nil {
 				return err
 			}
 			event := model.Event{
 				WebhookEvent: model.WebhookEvent{
 					ID:      uuid.New(),
-					Type:    model.EventTypeDeviceDecommissioned,
+					Type:    model.EventTypeDevicesInventory,
 					Data:    attributes,
 					EventTS: time.Now(),
 				},

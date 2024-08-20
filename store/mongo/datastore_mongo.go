@@ -346,6 +346,9 @@ func (db *DataStoreMongo) GetIntegrations(
 
 	fltrDoc := make(bson.D, 0, 3)
 	fltrDoc = append(fltrDoc, bson.E{Key: KeyTenantID, Value: tenantID})
+	if len(fltr.Scope) > 0 {
+		fltrDoc = append(fltrDoc, bson.E{Key: KeyScope, Value: fltr.Scope})
+	}
 	if fltr.Provider != model.ProviderEmpty {
 		fltrDoc = append(fltrDoc, bson.E{Key: KeyProvider, Value: fltr.Provider})
 	}
