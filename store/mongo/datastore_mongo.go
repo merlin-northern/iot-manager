@@ -264,10 +264,10 @@ func (db *DataStoreMongo) GetIntegrationsMap(ctx context.Context, scope *string)
 		return nil, errors.Wrap(err, "error retrieving integrations collection results")
 	}
 	integrations := make([]model.IntegrationMap, len(results))
-	for i, r := range integrations {
+	for i, r := range results {
 		integrations[i] = model.IntegrationMap{
-			TenantID: r.TenantID,
-			Scope:    r.Scope,
+			TenantID: r.Id.TenantID,
+			Scope:    r.Id.Scope,
 		}
 	}
 	return integrations, nil
