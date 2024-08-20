@@ -210,17 +210,18 @@ func (db *DataStoreMongo) ListCollectionNames(
 // has an integration
 func (db *DataStoreMongo) GetIntegrationsMap(ctx context.Context, scope *string) ([]model.IntegrationMap, error) {
 	collIntegrations := db.Collection(CollNameIntegrations)
-	group := bson.M{
-		"$group": bson.M{
+	group := []bson.M{
+		{"$group": bson.M{
 			"_id": bson.M{
 				KeyTenantID: "$" + KeyTenantID,
 				KeyScope:    "$" + KeyScope,
 			},
 		},
+		},
 	}
 
 	if scope != nil {
-		group["$match"] = bson.M{KeyScope: *scope}
+		group = append(group, bson.M{"$match": bson.M{KeyScope: *scope}})
 	}
 	cur, err := collIntegrations.Aggregate(ctx, group)
 	if err != nil {
