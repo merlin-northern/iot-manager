@@ -257,12 +257,21 @@ func (db *DataStoreMongo) GetIntegrationsMap(ctx context.Context, scope *string)
 	if err != nil {
 		return nil, errors.Wrap(err, "error executing integrations collection request")
 	}
-	var results []model.IntegrationMap
+	var results []struct {
+		Id string `bson:"id" json:"id"`
+		model.IntegrationMap
+	}
 	if err = cur.All(ctx, &results); err != nil {
 		return nil, errors.Wrap(err, "error retrieving integrations collection results")
 	}
-
-	return results, nil
+	integrations := make([]model.IntegrationMap, len(results))
+	for i, r := range integrations {
+		integrations[i] = model.IntegrationMap{
+			TenantID: r.TenantID,
+			Scope:    r.Scope,
+		}
+	}
+	return integrations, nil
 }
 
 func (db *DataStoreMongo) GetIntegrationsEtag(ctx context.Context) string {
