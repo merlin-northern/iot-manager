@@ -210,20 +210,50 @@ func (db *DataStoreMongo) ListCollectionNames(
 // has an integration
 func (db *DataStoreMongo) GetIntegrationsMap(ctx context.Context, scope *string) ([]model.IntegrationMap, error) {
 	collIntegrations := db.Collection(CollNameIntegrations)
-	group := []bson.M{
-		{"$group": bson.M{
-			"_id": bson.M{
-				KeyTenantID: "$" + KeyTenantID,
-				KeyScope:    "$" + KeyScope,
+	//group := bson.D{
+	//		Key:"$group",
+	//		Value:bson.M{
+	//			"_id": bson.M{
+	//				KeyTenantID: "$" + KeyTenantID,
+	//				KeyScope:    "$" + KeyScope,
+	//			},
+	//		},
+	//}
+	group := bson.D{
+		{
+			Key: "$group",
+			Value: bson.D{
+				{
+					Key: "_id",
+					Value: bson.M{
+						KeyTenantID: "$" + KeyTenantID,
+						KeyScope:    "$" + KeyScope,
+					},
+				},
 			},
-		},
 		},
 	}
 
+	var pipeline []bson.D
 	if scope != nil {
-		group = append(group, bson.M{"$match": bson.M{KeyScope: *scope}})
+		match := bson.D{
+			{
+				Key: "$match",
+				Value: bson.M{
+					KeyScope: *scope,
+				},
+			},
+		}
+		pipeline = []bson.D{
+			match,
+			group,
+		}
+	} else {
+		pipeline = []bson.D{
+			group,
+		}
 	}
-	cur, err := collIntegrations.Aggregate(ctx, group)
+	cur, err := collIntegrations.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, errors.Wrap(err, "error executing integrations collection request")
 	}
