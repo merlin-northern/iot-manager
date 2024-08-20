@@ -147,7 +147,7 @@ func (a *app) GetIntegrations(ctx context.Context) ([]model.Integration, error) 
 }
 
 func (a *app) GetIntegrationsWithScope(ctx context.Context, scope string) ([]model.Integration, error) {
-	return a.store.GetIntegrations(ctx, model.IntegrationFilter{})
+	return a.store.GetIntegrations(ctx, model.IntegrationFilter{Scope: scope})
 }
 
 func (a *app) GetIntegrationsMap(ctx context.Context, scope *string) ([]model.IntegrationMap, error) {
@@ -187,7 +187,7 @@ func (a *app) CreateIntegration(
 	if err == store.ErrObjectExists {
 		return nil, ErrIntegrationExists
 	}
-	if err != nil && result != nil {
+	if err == nil && result != nil {
 		err = a.store.SetIntegrationsEtag(ctx, uuid.NewString())
 	}
 	return result, err
