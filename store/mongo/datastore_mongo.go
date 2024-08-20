@@ -210,15 +210,6 @@ func (db *DataStoreMongo) ListCollectionNames(
 // has an integration
 func (db *DataStoreMongo) GetIntegrationsMap(ctx context.Context, scope *string) ([]model.IntegrationMap, error) {
 	collIntegrations := db.Collection(CollNameIntegrations)
-	//group := bson.D{
-	//		Key:"$group",
-	//		Value:bson.M{
-	//			"_id": bson.M{
-	//				KeyTenantID: "$" + KeyTenantID,
-	//				KeyScope:    "$" + KeyScope,
-	//			},
-	//		},
-	//}
 	group := bson.D{
 		{
 			Key: "$group",
@@ -235,14 +226,15 @@ func (db *DataStoreMongo) GetIntegrationsMap(ctx context.Context, scope *string)
 	}
 
 	var pipeline []bson.D
-	// {"$project":{"_id":false,"tenant_id":"$_id.tenant_id","scope":"$_id.scope"}}
 	project := bson.D{
 		{
-			Key:   "$project",
+			Key: "$project",
 			Value: bson.M{
-				"_id":false,
-				"tenant_id":"$_id.tenant_id",
-				"scope":"$_id.scope",
+				KeyID:       false,
+				KeyTenantID: "$" + KeyID + "." + KeyTenantID,
+				//"tenant_id": "$_id.tenant_id",
+				KeyScope: "$" + KeyID + "." + KeyScope,
+				//"scope":     "$_id.scope",
 			},
 		},
 	}
@@ -274,13 +266,6 @@ func (db *DataStoreMongo) GetIntegrationsMap(ctx context.Context, scope *string)
 	if err = cur.All(ctx, &results); err != nil {
 		return nil, errors.Wrap(err, "error retrieving integrations collection results")
 	}
-	//integrations := make([]model.IntegrationMap, len(results))
-	//for i, r := range results {
-	//	integrations[i] = model.IntegrationMap{
-	//		TenantID: r.Id.TenantID,
-	//		Scope:    r.Id.Scope,
-	//	}
-	//}
 	return results, nil
 }
 
