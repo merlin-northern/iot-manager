@@ -63,6 +63,7 @@ const (
 	EventTypeDeviceProvisioned    EventType = "device-provisioned"
 	EventTypeDeviceDecommissioned EventType = "device-decommissioned"
 	EventTypeDeviceStatusChanged  EventType = "device-status-changed"
+	EventTypeDevicesInventory     EventType = "devices-inventory-changed"
 )
 
 var eventTypeRule = validation.In(

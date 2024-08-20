@@ -21,8 +21,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"time"
-
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 )
 
@@ -97,14 +95,4 @@ type PreauthRequest struct {
 	DeviceID     string                 `json:"external_id"`
 	IdentityData map[string]interface{} `json:"id_data"`
 	PublicKey    PublicKey              `json:"pubkey"`
-}
-
-type DeviceAttributes []DeviceAttribute
-
-type DeviceAttribute struct {
-	Name        string      `json:"name" bson:",omitempty"`
-	Description *string     `json:"description,omitempty" bson:",omitempty"`
-	Value       interface{} `json:"value" bson:",omitempty"`
-	Scope       string      `json:"scope" bson:",omitempty"`
-	Timestamp   *time.Time  `json:"timestamp,omitempty" bson:",omitempty"`
 }

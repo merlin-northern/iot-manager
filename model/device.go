@@ -14,7 +14,10 @@
 
 package model
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"time"
+)
 
 // Device represents a device and its available integrations
 type Device struct {
@@ -22,4 +25,19 @@ type Device struct {
 	ID string `json:"id" bson:"_id"`
 	// Integrations contains the list of integrations for this device
 	IntegrationIDs []uuid.UUID `json:"integration_ids" bson:"integration_ids"`
+}
+
+type DeviceAttributes []DeviceAttribute
+
+type DeviceAttribute struct {
+	Name        string      `json:"name" bson:",omitempty"`
+	Description *string     `json:"description,omitempty" bson:",omitempty"`
+	Value       interface{} `json:"value" bson:",omitempty"`
+	Scope       string      `json:"scope" bson:",omitempty"`
+	Timestamp   *time.Time  `json:"timestamp,omitempty" bson:",omitempty"`
+}
+
+type InventoryWebHookData struct {
+	DeviceID   string           `json:"device_id"`
+	Attributes DeviceAttributes `json:"attributes"`
 }

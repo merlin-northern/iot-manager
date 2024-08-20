@@ -208,11 +208,6 @@ func (h *InternalHandler) PreauthorizeHandler(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-type InventoryWebHookData struct {
-	DeviceID string `json:"device_id"`
-	Attributes model.DeviceAttributes `json:"attributes"`
-}
-
 // POST /tenants/:tenant_id/bulk/devices/inventory
 func (h *InternalHandler) InventoryHandler(c *gin.Context) {
 	tenantID, okTenant := c.Params.Get(ParamTenantID)
@@ -221,24 +216,16 @@ func (h *InternalHandler) InventoryHandler(c *gin.Context) {
 		return
 	}
 
-	var req []InventoryWebHookData
+	var req []model.InventoryWebHookData
 	if err := c.BindJSON(&req); err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	var err error
-	for _,inventoryData:=range req {
 	ctx := identity.WithContext(c.Request.Context(), &identity.Identity{
-		IsDevice: true,
-		Subject:  inventoryData.DeviceID,
-		Tenant:   tenantID,
+		Tenant: tenantID,
 	})
-	e:=h.app.InventoryChanged(ctx, inventoryData.Attributes)
-	if e!=nil {
-		err=e
-	}
-	}
+	err := h.app.InventoryChanged(ctx, req)
 
 	if err != nil {
 		_ = c.Error(err)

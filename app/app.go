@@ -89,7 +89,7 @@ type App interface {
 
 	GetEvents(ctx context.Context, filter model.EventsFilter) ([]model.Event, error)
 	VerifyDeviceTwin(ctx context.Context, req model.PreauthRequest) error
-	InventoryChanged(ctx context.Context, attributes model.DeviceAttributes) error
+	InventoryChanged(ctx context.Context, attributes []model.InventoryWebHookData) error
 }
 
 // app is an app object
@@ -792,31 +792,78 @@ func (a *app) GetEvents(ctx context.Context, filter model.EventsFilter) ([]model
 	return a.store.GetEvents(ctx, filter)
 }
 
-func (a *app) InventoryChanged(ctx context.Context, attributes model.DeviceAttributes) error {
+func (a *app) InventoryChanged(ctx context.Context, attributes []model.InventoryWebHookData) error {
 	// using runAndLogError we call the webhook; or queue and call the webhooks with arrays of devices
 	// we do not queue here -- since we are getting an array of device inventories; we just runAndLogError
 	// and call the webhooks; setting the ctx to some seconds, so we do not wait too long
 	// the ctx timeout should more or less match the interval at which inventory-enterprise
 	// flushes the webhook queue (inventory.webhookQueueFlushInterval)
-	a.lockInventoryMap()
-	defer a.unlockInventoryMap()
-	a.insertInventory(ctx, attributes)
-	return nil
-}
+	go func() {
+		webHookCtx, cancel := context.WithTimeout(context.Background(), a.webhooksTimeout)
+		webHookCtx = identity.WithContext(webHookCtx, identity.FromContext(ctx))
+		defer cancel()
+		runAndLogError(webHookCtx, func() error {
+			integrations, err := a.GetIntegrations(ctx)
+			if err != nil {
+				return err
+			}
+			event := model.Event{
+				WebhookEvent: model.WebhookEvent{
+					ID:      uuid.New(),
+					Type:    model.EventTypeDeviceDecommissioned,
+					Data:    attributes,
+					EventTS: time.Now(),
+				},
+				DeliveryStatus: make([]model.DeliveryStatus, 0, len(integrations)),
+			}
+			for _, integration := range integrations {
+				var (
+					err error
+				)
+				deliver := model.DeliveryStatus{
+					IntegrationID: integration.ID,
+					Success:       true,
+				}
+				switch integration.Provider {
+				case model.ProviderWebhook:
+					var (
+						req *http.Request
+						rsp *http.Response
+					)
+					req, err = client.NewWebhookRequest(ctx,
+						&integration.Credentials,
+						event.WebhookEvent)
+					if err != nil {
+						break // switch
+					}
+					rsp, err = a.httpClient.Do(req)
+					if err != nil {
+						break // switch
+					}
+					deliver.StatusCode = &rsp.StatusCode
+					if rsp.StatusCode >= 300 {
+						err = client.NewHTTPError(rsp.StatusCode)
+					}
+					_ = rsp.Body.Close()
 
-func (a *app) insertInventory(ctx context.Context, attributes model.DeviceAttributes) {
-	id:=identity.FromContext(ctx)
-	if id==nil {
-		return
-	}
-	if _,exists:=a.inventoryMap[id.Tenant]; !exists {
-		a.inventoryMap[id.Tenant] = make(map[string]model.InventoryItem)
-	}
-	a.inventoryMap[id.Tenant][id.Subject]=model.InventoryItem{Attributes: attributes, TenantID:id.Tenant}
-	// inventoryMap stores the per device inventories to be flushed to a webhook
-	// now the worker routine, locks the map via lockInventoryMap then replaces a.inventoryMap with a new
-	// hash and then unlocks via unlockInventoryMap and deals with the webhook calls, by
-	// gathering devices for each tenant in batches of e.g. 100 (defined var).
+				default:
+					continue
+				}
+				if err != nil {
+					var httpError client.HTTPError
+					if errors.As(err, &httpError) {
+						errCode := httpError.Code()
+						deliver.StatusCode = &errCode
+					}
+					deliver.Success = false
+					deliver.Error = err.Error()
+				}
+				event.DeliveryStatus = append(event.DeliveryStatus, deliver)
+			}
+			return nil
+		})
+	}()
+	return nil
 }
 
 func runAndLogError(ctx context.Context, f func() error) {
@@ -833,4 +880,3 @@ func runAndLogError(ctx context.Context, f func() error) {
 	}()
 	err = f()
 }
-
