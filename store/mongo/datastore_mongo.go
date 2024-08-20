@@ -235,6 +235,21 @@ func (db *DataStoreMongo) GetIntegrationsMap(ctx context.Context, scope *string)
 	}
 
 	var pipeline []bson.D
+	// {"$project":{"_id":false,"tenant_id":"$_id.tenant_id","scope":"$_id.scope"}}
+	project := bson.D{
+		{
+			Key:   "_id",
+			Value: false,
+		},
+		{
+			Key:   "tenant_id",
+			Value: "$_id.tenant_id",
+		},
+		{
+			Key:   "scope",
+			Value: "$_id.scope",
+		},
+	}
 	if scope != nil {
 		match := bson.D{
 			{
@@ -247,30 +262,30 @@ func (db *DataStoreMongo) GetIntegrationsMap(ctx context.Context, scope *string)
 		pipeline = []bson.D{
 			match,
 			group,
+			project,
 		}
 	} else {
 		pipeline = []bson.D{
 			group,
+			project,
 		}
 	}
 	cur, err := collIntegrations.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, errors.Wrap(err, "error executing integrations collection request")
 	}
-	var results []struct {
-		Id model.IntegrationMap `bson:"_id" json:"id"`
-	}
+	var results []model.IntegrationMap
 	if err = cur.All(ctx, &results); err != nil {
 		return nil, errors.Wrap(err, "error retrieving integrations collection results")
 	}
-	integrations := make([]model.IntegrationMap, len(results))
-	for i, r := range results {
-		integrations[i] = model.IntegrationMap{
-			TenantID: r.Id.TenantID,
-			Scope:    r.Id.Scope,
-		}
-	}
-	return integrations, nil
+	//integrations := make([]model.IntegrationMap, len(results))
+	//for i, r := range results {
+	//	integrations[i] = model.IntegrationMap{
+	//		TenantID: r.Id.TenantID,
+	//		Scope:    r.Id.Scope,
+	//	}
+	//}
+	return results, nil
 }
 
 func (db *DataStoreMongo) GetIntegrationsEtag(ctx context.Context) string {
