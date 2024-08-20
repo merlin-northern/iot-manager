@@ -266,6 +266,9 @@ func (db *DataStoreMongo) GetIntegrationsMap(ctx context.Context, scope *string)
 	if err = cur.All(ctx, &results); err != nil {
 		return nil, errors.Wrap(err, "error retrieving integrations collection results")
 	}
+	if len(results) < 1 {
+		return []model.IntegrationMap{}, nil
+	}
 	return results, nil
 }
 
