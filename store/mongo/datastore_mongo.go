@@ -238,16 +238,12 @@ func (db *DataStoreMongo) GetIntegrationsMap(ctx context.Context, scope *string)
 	// {"$project":{"_id":false,"tenant_id":"$_id.tenant_id","scope":"$_id.scope"}}
 	project := bson.D{
 		{
-			Key:   "_id",
-			Value: false,
-		},
-		{
-			Key:   "tenant_id",
-			Value: "$_id.tenant_id",
-		},
-		{
-			Key:   "scope",
-			Value: "$_id.scope",
+			Key:   "$project",
+			Value: []bson.M{
+				{"_id":false},
+				{"tenant_id":"$_id.tenant_id"},
+				{"scope":"$_id.scope"},
+			},
 		},
 	}
 	if scope != nil {
