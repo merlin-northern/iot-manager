@@ -128,6 +128,6 @@ type IntegrationFilter struct {
 // integrations on startup / periodically and not during every call that needs
 // a webhook call.
 type IntegrationMap struct {
-	TenantID string
-	Scope    string
+	TenantID string `bson:"tenant_id"`
+	Scope    string `bson:"scope"`
 }
