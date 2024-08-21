@@ -146,11 +146,17 @@ func (a *app) GetIntegrations(ctx context.Context) ([]model.Integration, error) 
 	return a.store.GetIntegrations(ctx, model.IntegrationFilter{})
 }
 
-func (a *app) GetIntegrationsWithScope(ctx context.Context, scope string) ([]model.Integration, error) {
+func (a *app) GetIntegrationsWithScope(
+	ctx context.Context,
+	scope string,
+) ([]model.Integration, error) {
 	return a.store.GetIntegrations(ctx, model.IntegrationFilter{Scope: scope})
 }
 
-func (a *app) GetIntegrationsMap(ctx context.Context, scope *string) ([]model.IntegrationMap, error) {
+func (a *app) GetIntegrationsMap(
+	ctx context.Context,
+	scope *string,
+) ([]model.IntegrationMap, error) {
 	return a.store.GetIntegrationsMap(ctx, scope)
 }
 
@@ -807,9 +813,6 @@ func (a *app) GetEvents(ctx context.Context, filter model.EventsFilter) ([]model
 }
 
 func (a *app) InventoryChanged(ctx context.Context, attributes []model.InventoryWebHookData) error {
-	// using runAndLogError we call the webhook; or queue and call the webhooks with arrays of devices
-	// we do not queue here -- since we are getting an array of device inventories; we just runAndLogError
-	// and call the webhooks; setting the ctx to some seconds, so we do not wait too long
 	// the ctx timeout should more or less match the interval at which inventory-enterprise
 	// flushes the webhook queue (inventory.webhookQueueFlushInterval)
 	go func() {

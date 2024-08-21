@@ -252,7 +252,9 @@ func (h *InternalHandler) GetIntegrationsMap(c *gin.Context) {
 	}
 
 	var scope *string
-	if len(scopeParam) > 0 && (scopeParam == model.ScopeDeviceAuth || scopeParam == model.ScopeInventory) {
+	if len(scopeParam) > 0 &&
+		(scopeParam == model.ScopeDeviceAuth ||
+			scopeParam == model.ScopeInventory) {
 		scope = &scopeParam
 	} else {
 		if len(scopeParam) > 0 {

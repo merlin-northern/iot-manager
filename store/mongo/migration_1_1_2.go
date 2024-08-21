@@ -16,11 +16,13 @@ package mongo
 
 import (
 	"context"
-	"github.com/mendersoftware/iot-manager/model"
 
-	"github.com/mendersoftware/go-lib-micro/mongo/migrate"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+
+	"github.com/mendersoftware/go-lib-micro/mongo/migrate"
+
+	"github.com/mendersoftware/iot-manager/model"
 )
 
 type migration_1_1_2 struct {

@@ -208,7 +208,10 @@ func (db *DataStoreMongo) ListCollectionNames(
 // GetIntegrationsMap returns an array with all the tenants and scopes of their integration
 // this is need for services like inventory-enterprise which will need to know if given tenant
 // has an integration
-func (db *DataStoreMongo) GetIntegrationsMap(ctx context.Context, scope *string) ([]model.IntegrationMap, error) {
+func (db *DataStoreMongo) GetIntegrationsMap(
+	ctx context.Context,
+	scope *string,
+) ([]model.IntegrationMap, error) {
 	collIntegrations := db.Collection(CollNameIntegrations)
 	group := bson.D{
 		{
