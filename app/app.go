@@ -844,7 +844,7 @@ func (a *app) InventoryChanged(ctx context.Context, attributes []model.Inventory
 						req *http.Request
 						rsp *http.Response
 					)
-					req, err = client.NewWebhookRequest(ctx,
+					req, err = client.NewWebhookRequest(webHookCtx,
 						&integration.Credentials,
 						event.WebhookEvent)
 					if err != nil {
