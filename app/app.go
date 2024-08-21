@@ -817,7 +817,7 @@ func (a *app) InventoryChanged(ctx context.Context, attributes []model.Inventory
 		webHookCtx = identity.WithContext(webHookCtx, identity.FromContext(ctx))
 		defer cancel()
 		runAndLogError(webHookCtx, func() error {
-			integrations, err := a.GetIntegrationsWithScope(ctx, model.ScopeInventory)
+			integrations, err := a.GetIntegrationsWithScope(webHookCtx, model.ScopeInventory)
 			if err != nil {
 				return err
 			}
